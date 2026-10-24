@@ -16,19 +16,16 @@ export async function GET(request: NextRequest) {
   const apiBaseUrl = process.env.API_BASE_URL;
 
   if (!apiBaseUrl) {
-    return (
-      new Response("APIの接続先が未設定です"),
-      {
-        status: 500,
-      }
-    );
+    return new Response("APIの接続先が未設定です", {
+      status: 500,
+    });
   }
 
   try {
     const result = await fetch(`${apiBaseUrl}/auth/token`, {
       method: "POST",
       headers: {
-        "Content Type": "application/json",
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ code }),
       cache: "no-store",
@@ -47,9 +44,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const response = NextResponse.redirect(new URL("/workspace", request.url));
+    const response = NextResponse.redirect(new URL("/workspaces", request.url));
 
-    response.cookies.set("accsessToken", data.accessToken, {
+    response.cookies.set("accessToken", data.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
