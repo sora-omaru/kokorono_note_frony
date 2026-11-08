@@ -23,5 +23,8 @@ export function useApiResource<T>(path: WorkspaceApiPath) {
     setError(null);
     setAttempt((value) => value + 1);
   }
-  return { data, error, retry };
+  function refresh() {
+    setAttempt((value) => value + 1);
+  }
+  return { data, error, retry, refresh, setData };
 }

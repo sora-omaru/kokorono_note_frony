@@ -38,6 +38,165 @@ function returnedSession(response: Response) {
     .split(";", 1)[0].slice(SESSION_COOKIE.length + 1);
   return openSession(value)!;
 }
+
+/** 起動中のBFF→Spring Boot→ローカルDBで、階層全体の契約と認可を検証する。 */
+async function verifyEntries(workspaceId: string, owner: Session, outsider: Session): Promise<Session> {
+  let current = owner;
+  let foreignSession = outsider;
+  const base = `http://localhost:3000/api/workspaces/${workspaceId}/events`;
+  const origin = "http://localhost:3000";
+  type Named = { id: string; name: string };
+  type Note = { id: string; content: string };
+
+  async function send(path: string, method = "GET", body?: unknown, foreign = false) {
+    const headers: Record<string, string> = { Cookie: cookie(foreign ? foreignSession : current) };
+    if (method !== "GET") headers.Origin = origin;
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const result = await fetch(path, {
+      method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (result.headers.getSetCookie().some((value) => value.startsWith(`${SESSION_COOKIE}=`))) {
+      const updated = returnedSession(result);
+      assert.ok(updated, "Hierarchy requests must retain a valid session");
+      if (foreign) foreignSession = updated;
+      else current = updated;
+    }
+    return result;
+  }
+  async function named(path: string, method: string, name: string): Promise<Named> {
+    const result = await send(path, method, { name });
+    assert.equal(result.status, method === "POST" ? 201 : 200, `Hierarchy ${method} name operation failed`);
+    const item = await result.json() as Named;
+    assert.match(item.id, /^[1-9]\d*$/, "Hierarchy IDs must be decimal strings");
+    assert.equal(item.name, name.trim());
+    return item;
+  }
+  async function note(path: string, method: string, content: string): Promise<Note> {
+    const result = await send(path, method, { content });
+    assert.equal(result.status, method === "POST" ? 201 : 200, `Hierarchy ${method} content operation failed`);
+    const item = await result.json() as Note;
+    assert.match(item.id, /^[1-9]\d*$/, "Note IDs must remain strings");
+    assert.equal(item.content, content.trim());
+    return item;
+  }
+  async function list<T>(path: string): Promise<T[]> {
+    const result = await send(path);
+    assert.equal(result.status, 200, "Hierarchy list request failed");
+    return await result.json() as T[];
+  }
+  async function remove(path: string) {
+    const result = await send(path, "DELETE");
+    assert.equal(result.status, 204, "Hierarchy deletion must succeed");
+    assert.equal(await result.text(), "", "A 204 response must have no body");
+  }
+  async function absent(path: string, method = "GET", body?: unknown, foreign = false) {
+    assert.equal((await send(path, method, body, foreign)).status, 404, "A missing or inaccessible child must not be exposed or changed");
+  }
+
+  assert.deepEqual(await list(base), []);
+  const firstEvent = await named(base, "POST", "  旅行  ");
+  const secondEvent = await named(base, "POST", "名".repeat(100));
+  const firstEventUrl = `${base}/${firstEvent.id}`;
+  const secondEventUrl = `${base}/${secondEvent.id}`;
+  assert.equal((await send(firstEventUrl)).status, 200);
+  await named(firstEventUrl, "PATCH", "  次の旅行  ");
+  assert.deepEqual((await list<Named>(base)).map((item) => item.id), [firstEvent.id, secondEvent.id], "Event edits must preserve registration order");
+
+  const categories = `${firstEventUrl}/categories`;
+  const firstCategory = await named(categories, "POST", "分".repeat(100));
+  const secondCategory = await named(categories, "POST", "注意点");
+  const otherCategory = await named(`${secondEventUrl}/categories`, "POST", "別の出来事の分類");
+  const firstCategoryUrl = `${categories}/${firstCategory.id}`;
+  const secondCategoryUrl = `${categories}/${secondCategory.id}`;
+  const otherCategoryUrl = `${secondEventUrl}/categories/${otherCategory.id}`;
+  await named(firstCategoryUrl, "PATCH", "  持ち物  ");
+  assert.deepEqual((await list<Named>(categories)).map((item) => item.id), [firstCategory.id, secondCategory.id], "Category edits must preserve registration order");
+
+  const notes = `${firstCategoryUrl}/notes`;
+  const firstNote = await note(notes, "POST", '持ち物のメモ\n本文中の {"id":9007199254740993} は文章です。');
+  const secondNote = await note(notes, "POST", "文".repeat(255));
+  const firstNoteUrl = `${notes}/${firstNote.id}`;
+  const secondNoteUrl = `${notes}/${secondNote.id}`;
+  const changedNote = '更新したメモ\n{"id":9223372036854775807} も本文のまま残す。';
+  await note(firstNoteUrl, "PATCH", `  ${changedNote}  `);
+  await note(secondNoteUrl, "PATCH", "改".repeat(255));
+  const notesAfterEdit = await list<Note>(notes);
+  assert.deepEqual(notesAfterEdit.map((item) => item.id), [firstNote.id, secondNote.id], "Note edits must not move the item");
+  assert.equal(notesAfterEdit[0].content, changedNote, "ID-like text inside a note must not be rewritten");
+
+  for (const [path, field, limit, method] of [
+    [base, "name", 100, "POST"], [firstEventUrl, "name", 100, "PATCH"],
+    [categories, "name", 100, "POST"], [firstCategoryUrl, "name", 100, "PATCH"],
+    [notes, "content", 255, "POST"], [firstNoteUrl, "content", 255, "PATCH"],
+  ] as const) {
+    for (const invalid of [" \n ", "あ".repeat(limit + 1)]) {
+      assert.equal((await send(path, method, { [field]: invalid })).status, 400, "Blank and overlong hierarchy input must be rejected");
+    }
+  }
+  for (const invalidId of ["0", "-1", "abc", "9223372036854775808"]) {
+    assert.equal((await send(`${base}/${invalidId}`)).status, 400, "Malformed or overflowing Long IDs must be rejected");
+  }
+  const unsupported = await send(base, "PATCH", { name: "unsupported" });
+  assert.equal(unsupported.status, 405);
+
+  // 非所属アカウントは各階層の取得・作成・更新・削除をすべて拒否される。
+  for (const [collection, single, field] of [
+    [base, firstEventUrl, "name"], [categories, firstCategoryUrl, "name"], [notes, firstNoteUrl, "content"],
+  ] as const) {
+    await absent(collection, "GET", undefined, true);
+    await absent(collection, "POST", { [field]: "forbidden" }, true);
+    await absent(single, "GET", undefined, true);
+    await absent(single, "PATCH", { [field]: "forbidden" }, true);
+    await absent(single, "DELETE", undefined, true);
+  }
+
+  // 所属済みWorkspace間、および同じWorkspace内でも親子関係を取り違えたURLは拒否する。
+  const extraWorkspace = await send("http://localhost:3000/api/workspaces", "POST", { name: "親子関係テスト用" });
+  assert.equal(extraWorkspace.status, 201);
+  const extraWorkspaceId = (await extraWorkspace.json()).id as string;
+  assert.match(extraWorkspaceId, /^[0-9a-f-]{36}$/i);
+  const wrongWorkspaceEvent = `http://localhost:3000/api/workspaces/${extraWorkspaceId}/events/${firstEvent.id}`;
+  const wrongEventCategory = `${secondEventUrl}/categories/${firstCategory.id}`;
+  const wrongCategoryNote = `${secondCategoryUrl}/notes/${firstNote.id}`;
+  for (const [path, field] of [[wrongWorkspaceEvent, "name"], [wrongEventCategory, "name"], [wrongCategoryNote, "content"]] as const) {
+    await absent(path);
+    await absent(path, "PATCH", { [field]: "wrong parent" });
+    await absent(path, "DELETE");
+  }
+  assert.equal((await send(firstNoteUrl)).status, 200, "A rejected wrong-parent deletion must leave the original note intact");
+
+  await remove(secondNoteUrl);
+  await absent(secondNoteUrl);
+  assert.deepEqual((await list<Note>(notes)).map((item) => item.id), [firstNote.id]);
+  const categoryChild = await note(notes, "POST", "分類削除で消えるメモ");
+  await remove(firstCategoryUrl);
+  await absent(firstCategoryUrl);
+  await absent(firstNoteUrl);
+  await absent(`${notes}/${categoryChild.id}`);
+  assert.equal(sql(`SELECT (SELECT count(*) FROM category WHERE id=${firstCategory.id}) + (SELECT count(*) FROM note WHERE id IN (${firstNote.id},${categoryChild.id}));`), "0", "Category deletion must cascade to its notes");
+  const eventChild = await note(`${secondCategoryUrl}/notes`, "POST", "出来事削除で消えるメモ");
+  const survivingNote = await note(`${otherCategoryUrl}/notes`, "POST", "別の出来事のメモは残る");
+  await remove(firstEventUrl);
+  await absent(firstEventUrl);
+  await absent(secondCategoryUrl);
+  await absent(`${secondCategoryUrl}/notes/${eventChild.id}`);
+  assert.equal(sql(`SELECT (SELECT count(*) FROM event WHERE id=${firstEvent.id}) + (SELECT count(*) FROM category WHERE id=${secondCategory.id}) + (SELECT count(*) FROM note WHERE id=${eventChild.id});`), "0", "Event deletion must cascade to its categories and notes");
+  assert.equal((await send(`${otherCategoryUrl}/notes/${survivingNote.id}`)).status, 200, "Deleting one Event must not affect another Event");
+  await remove(secondEventUrl);
+
+  // JSの安全な整数範囲を超える実DB IDでも、BFFを通じて同じIDを操作できる。
+  const largeId = "9007199254740993";
+  sql(`INSERT INTO event(id,workspace_id,name) OVERRIDING SYSTEM VALUE VALUES (${largeId},'${workspaceId}','大きいIDの検証');`);
+  const large = await send(`${base}/${largeId}`);
+  assert.equal(large.status, 200);
+  assert.equal((await large.json()).id, largeId, "Long IDs must retain all digits across the BFF");
+  await named(`${base}/${largeId}`, "PATCH", "精度を保って更新");
+  await remove(`${base}/${largeId}`);
+  await remove(`http://localhost:3000/api/workspaces/${extraWorkspaceId}`);
+  assert.deepEqual(await list(base), []);
+  console.log("PASS: hierarchy CRUD, registration order, input boundaries, parent/permission checks, cascade deletion, and lossless Long IDs.");
+  return current;
+}
 async function run() {
   const id = randomUUID();
   const other = randomUUID();
@@ -87,6 +246,8 @@ INSERT INTO refresh_token(account_id,token_hash,expires_at) VALUES ('${id}','${h
     assert.equal(first.refreshToken, second.refreshToken);
     current = first;
 
+    current = await verifyEntries(workspaceId!, current, { ...current, accessToken: token(other) });
+
     // 配下の実データを用意し、Workspace削除時のDBカスケードも確認する。
     const children = sql(`WITH e AS (INSERT INTO event(workspace_id,name) VALUES ('${workspaceId}','test event') RETURNING id),
 c AS (INSERT INTO category(event_id,name) SELECT id,'test category' FROM e RETURNING id),
@@ -127,4 +288,8 @@ SELECT e.id || ':' || c.id || ':' || n.id FROM e,c,n;`).split(":");
 DELETE FROM account WHERE id IN ('${id}','${other}'); COMMIT;`);
   }
 }
-run().catch(() => { console.error("Local API integration failed; no credentials were logged."); process.exitCode = 1; });
+run().catch((error) => {
+  const location = error instanceof Error ? error.stack?.match(/local-api\.integration\.ts:\d+:\d+/)?.[0] : undefined;
+  console.error(`Local API integration failed${location ? ` at ${location}` : ""}; no credentials were logged.`);
+  process.exitCode = 1;
+});

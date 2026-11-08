@@ -26,10 +26,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <a href="#main-content" className="skip-link">本文へスキップ</a>
-        <header className="border-b border-slate-200 bg-white">
+        <header className="site-header bg-white">
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-            <Link href="/" className="rounded text-xl font-bold tracking-tight text-slate-900">心のノート</Link>
-            <nav aria-label="メインメニュー"><Link href="/workspaces" className="rounded text-sm font-medium text-slate-600 hover:text-slate-900">Workspace一覧</Link></nav>
+            <Link href="/" className="site-brand rounded">心のノート</Link>
+            <nav aria-label="メインメニュー"><Link href="/workspaces" className="site-nav-link">Workspace一覧</Link></nav>
           </div>
         </header>
         <div id="main-content" tabIndex={-1} className="flex flex-1 flex-col">{children}</div>

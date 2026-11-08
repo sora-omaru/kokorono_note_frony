@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --conditions=react-server --import tsx tests/auth.test.ts",
+    "test": "node --conditions=react-server --import tsx tests/auth.test.ts && node --conditions=react-server --import tsx tests/entries.test.ts",
     "test:integration": "node --conditions=react-server --import tsx tests/local-api.integration.ts"
   },
   "dependencies": {

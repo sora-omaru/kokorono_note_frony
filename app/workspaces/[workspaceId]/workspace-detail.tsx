@@ -7,6 +7,7 @@ import { browserApi } from "../../../lib/api";
 import { useApiResource } from "../../../lib/use-api-resource";
 import type { Workspace } from "../../../lib/workspaces";
 import { ErrorState, LoadingState, Screen } from "../../components/ui";
+import EntryCollection from "../entry-collection";
 
 export default function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   const { data: workspace, error, retry } = useApiResource<Workspace>(`/api/workspaces/${workspaceId}`);
@@ -43,6 +44,7 @@ export default function WorkspaceDetail({ workspaceId }: { workspaceId: string }
         <h2 id="workspace-about" className="text-lg font-semibold text-slate-900">このWorkspaceについて</h2>
         <p className="mt-3 leading-7 text-slate-600">旅行やイベントの注意点、持ち物、次回へのメモなどを、参加者と共有するための場所です。参加者はみんな同じように記録を編集できます。</p>
       </section>
+      <EntryCollection label="出来事" apiPath={`/api/workspaces/${workspaceId}/events`} hrefBase={`/workspaces/${workspaceId}/events`} />
       <section className="panel border-red-200" aria-labelledby="workspace-delete">
         <h2 id="workspace-delete" className="font-semibold text-slate-900">Workspaceの削除</h2>
         <p className="mt-3 text-sm leading-7 text-slate-600">削除すると、配下の出来事（Event）、分類（Category）、メモ（Note）、招待コードもすべて削除されます。参加者全員がアクセスできなくなります。</p>

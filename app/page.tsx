@@ -3,9 +3,9 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="flex flex-1 py-12 flex-col items-center justify-center bg-slate-50 px-6">
-      <div className="w-full max-w-md text-center">
-        <h1 className="mb-4 text-4xl font-bold text-slate-800">
+    <main className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-6 py-16">
+      <div className="home-card w-full max-w-xl text-center">
+        <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-slate-800 sm:text-5xl">
           心のノート
         </h1>
 

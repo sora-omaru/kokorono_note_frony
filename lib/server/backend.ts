@@ -71,7 +71,20 @@ function statusError(status: number): ApiError {
 
 async function json<T>(response: Response): Promise<T> {
   try {
-    return (await response.json()) as T;
+    // JSON.parseがLongをnumberへ丸める前に、数値のidだけを文字列にする。
+    // 文字列トークンは丸ごと消費するので、Note本文内のid風の文章は変更しない。
+    let previous: string | undefined;
+    let beforePrevious: string | undefined;
+    const source = (await response.text()).replace(
+      /"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\]:,]|true|false|null/g,
+      (token: string) => {
+        const isId = previous === ":" && beforePrevious?.startsWith('"') && JSON.parse(beforePrevious) === "id";
+        beforePrevious = previous;
+        previous = token;
+        return isId && /^-?\d+$/.test(token) ? JSON.stringify(token) : token;
+      },
+    );
+    return JSON.parse(source) as T;
   } catch {
     throw new ApiError(502, "APIの応答が不正です");
   }
