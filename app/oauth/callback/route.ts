@@ -1,62 +1,28 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-
-type TokenResponse = {
-  accessToken: string;
-};
+import { exchangeCode } from "../../../lib/server/backend";
+import { privateResponse } from "../../../lib/server/http";
+import { cookieOptions, FLOW_COOKIE, sealSession, SESSION_COOKIE } from "../../../lib/server/session";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
-
-  if (!code) {
-    return new Response("認証コードがありません", {
-      status: 400,
-    });
-  }
-
-  const apiBaseUrl = process.env.API_BASE_URL;
-
-  if (!apiBaseUrl) {
-    return new Response("APIの接続先が未設定です", {
-      status: 500,
-    });
-  }
-
+  const flow = request.nextUrl.searchParams.get("flow");
+  const expected = request.cookies.get(FLOW_COOKIE)?.value;
+  let response: NextResponse;
   try {
-    const result = await fetch(`${apiBaseUrl}/auth/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ code }),
-      cache: "no-store",
-    });
-
-    if (!result.ok) {
-      return new Response("トークンの取得に失敗しました", {
-        status: 502,
-      });
+    if (!code || !flow || !expected || !/^[a-f0-9]{64}$/.test(flow) ||
+        flow.length !== expected.length || !timingSafeEqual(Buffer.from(flow), Buffer.from(expected))) {
+      throw new Error("Invalid login flow");
     }
-    const data: TokenResponse = await result.json();
-
-    if (!data.accessToken) {
-      return new Response("JWTが返却されませんでした", {
-        status: 502,
-      });
-    }
-
-    const response = NextResponse.redirect(new URL("/workspaces", request.url));
-
-    response.cookies.set("accessToken", data.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    });
-
-    return response;
+    const session = await exchangeCode(code);
+    response = NextResponse.redirect(new URL("/workspaces", request.url));
+    response.cookies.set(SESSION_COOKIE, sealSession(session), cookieOptions());
+    response.cookies.set("accessToken", "", cookieOptions(0));
   } catch {
-    return new Response("認証処理でエラーが発生しました。", {
-      status: 502,
-    });
+    response = NextResponse.redirect(new URL("/login?error=oauth", request.url));
+    response.cookies.set(SESSION_COOKIE, "", cookieOptions(0));
   }
+  response.cookies.set(FLOW_COOKIE, "", cookieOptions(0));
+  response.headers.set("Referrer-Policy", "no-referrer");
+  return privateResponse(response);
 }

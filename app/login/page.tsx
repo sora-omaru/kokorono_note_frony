@@ -1,26 +1,25 @@
-export default function LoginPage() {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { Suspense } from "react";
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-6">
-      <div className="w-full max-w-md text-center">
-        <h1 className="mb-4 text-3xl font-bold text-slate-800">ログイン</h1>
+const errors: Record<string, string> = {
+  oauth: "ログインを完了できませんでした。もう一度Googleでログインしてください。",
+  session: "ログインの有効期限が切れました。もう一度ログインしてください。",
+  config: "APIの接続設定を確認してください。",
+};
 
-        <p className="mb-8 text-slate-600">
-          Googleアカウントでログインしてください
-        </p>
+async function LoginMessage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
+  return error && errors[error] ? <p role="alert" className="mb-6 text-red-700">{errors[error]}</p> : null;
+}
 
-        {apiBaseUrl ? (
-          <a
-            href={`${apiBaseUrl}/oauth2/authorization/google`}
-            className="inline-block rounded-lg bg-slate-800 px-8 py-3 text-white hover:bg-slate-700"
-          >
-            Googleでログイン
-          </a>
-        ) : (
-          <p className="text-red-600">APIの接続先が設定されていません</p>
-        )}
-      </div>
-    </main>
-  );
+export default function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  return <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+    <div className="w-full max-w-md text-center">
+      <h1 className="mb-4 text-3xl font-bold text-slate-800">ログイン</h1>
+      <p className="mb-8 text-slate-600">Googleアカウントでログインしてください</p>
+      <Suspense fallback={null}><LoginMessage searchParams={searchParams} /></Suspense>
+      <a href="/auth/login" className="inline-block rounded-lg bg-slate-800 px-8 py-3 text-white">
+        Googleでログイン
+      </a>
+    </div>
+  </main>;
 }

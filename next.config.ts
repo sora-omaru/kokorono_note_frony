@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  logging: {
+    // コールバックURLの一時認証コードを開発ログへ出さない。
+    incomingRequests: { ignore: [/\/oauth\/callback/] },
+  },
   experimental: {
     agentFeedback: true,
   },
