@@ -14,11 +14,9 @@ export default function WorkspaceList() {
         <h2 className="text-lg font-semibold text-slate-900">まだWorkspaceがありません</h2>
         <p className="mt-3 leading-7 text-slate-600">新しく作成するか、招待コードで参加して記録を始めましょう。</p>
       </section> : <ul className="space-y-3">{workspaces.map((workspace) =>
-        <li key={workspace.id}>
-          <Link href={`/workspaces/${workspace.id}`} className="panel flex items-center justify-between gap-4 transition-colors hover:border-slate-400 hover:bg-slate-100">
-            <span className="min-w-0 break-words font-semibold text-slate-900">{workspace.name}</span>
-            <span aria-hidden="true" className="shrink-0 text-slate-500">→</span>
-          </Link>
+        <li key={workspace.id} className="panel flex flex-wrap items-center justify-between gap-3">
+          <Link href={`/workspaces/${workspace.id}`} className="min-w-0 break-words font-semibold text-slate-900 hover:underline">{workspace.name} →</Link>
+          <Link href={`/workspaces/${workspace.id}/invites`} className="btn btn-secondary">招待コードを発行</Link>
         </li>)}
       </ul>}
   </Screen>;
