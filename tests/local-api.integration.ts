@@ -485,14 +485,31 @@ INSERT INTO refresh_token(account_id,token_hash,expires_at) VALUES ('${id}','${h
       accessToken: token(other),
     });
 
-    // 配下の実データを用意し、Workspace削除時のDBカスケードも確認する。
-    const children =
-      sql(`WITH e AS (INSERT INTO event(workspace_id,name) VALUES ('${workspaceId}','test event') RETURNING id),
-c AS (INSERT INTO category(event_id,name) SELECT id,'test category' FROM e RETURNING id),
-n AS (INSERT INTO note(category_id,content) SELECT id,'test note' FROM c RETURNING id)
-SELECT e.id || ':' || c.id || ':' || n.id FROM e,c,n;`).split(":");
-    assert.equal(children.length, 3);
+    // 受け入れ操作と同じAPI順で階層を作り、後で共同編集と親削除を確認する。
+    async function addChild(path: string, field: "name" | "content", value: string) {
+      const result = await fetch(path, {
+        method: "POST",
+        headers: { Cookie: cookie(current), Origin: "http://localhost:3000", "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      assert.equal(result.status, 201);
+      current = returnedSession(result);
+      return (await result.json()).id as string;
+    }
+    const eventId = await addChild(`${detailUrl}/events`, "name", "受け入れ用の出来事");
+    const categoryId = await addChild(`${detailUrl}/events/${eventId}/categories`, "name", "持ち物");
+    const noteBase = `${detailUrl}/events/${eventId}/categories/${categoryId}/notes`;
+    const noteId = await addChild(noteBase, "content", "初回のメモ");
+    const children = [eventId, categoryId, noteId];
     assert.ok(children.every((value) => /^\d+$/.test(value)));
+    const ownerEdited = await fetch(`${noteBase}/${noteId}`, {
+      method: "PATCH",
+      headers: { Cookie: cookie(current), Origin: "http://localhost:3000", "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "招待前に編集したメモ" }),
+    });
+    assert.equal(ownerEdited.status, 200);
+    assert.equal((await ownerEdited.json()).content, "招待前に編集したメモ");
+    current = returnedSession(ownerEdited);
     const inviteUrl = `${detailUrl}/invites`;
     const ownerHeaders = {
       Cookie: cookie(current),
@@ -559,7 +576,7 @@ SELECT e.id || ':' || c.id || ':' || n.id FROM e,c,n;`).split(":");
       200,
     );
     // 参加者の編集結果がもう一人の参加者にも見えることを確認する。
-    const noteUrl = `${detailUrl}/events/${children[0]}/categories/${children[1]}/notes/${children[2]}`;
+    const noteUrl = `${noteBase}/${noteId}`;
     const changed = await fetch(noteUrl, {
       method: "PATCH",
       headers: {
