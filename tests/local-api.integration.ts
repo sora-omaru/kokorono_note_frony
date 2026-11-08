@@ -20,9 +20,10 @@ process.env.AUTH_SESSION_SECRET = frontendEnv.AUTH_SESSION_SECRET;
 const backendEnv = variables(resolve(back, ".env"));
 const privateKey = createPrivateKey({ key: Buffer.from(backendEnv.JWT_PRIVATE_KEY, "base64"), format: "der", type: "pkcs8" });
 function sql(statement: string) {
-  const result = spawnSync("docker", ["compose", "exec", "-T", "postgres", "psql", "-U", "kokorono_note", "-d", "kokorono_note", "-v", "ON_ERROR_STOP=1"],
+  const result = spawnSync("docker", ["compose", "exec", "-T", "postgres", "psql", "-tA", "-U", "kokorono_note", "-d", "kokorono_note", "-v", "ON_ERROR_STOP=1"],
     { cwd: back, input: statement, encoding: "utf8" });
   assert.equal(result.status, 0, "Local fixture SQL failed");
+  return result.stdout.trim();
 }
 function token(id: string, expired = false) {
   const now = Math.floor(Date.now() / 1000);
@@ -63,6 +64,15 @@ INSERT INTO refresh_token(account_id,token_hash,expires_at) VALUES ('${id}','${h
     const privateList = await fetch(url, { headers: { Cookie: cookie({ ...current, accessToken: token(other) }) } });
     assert.equal(privateList.status, 200);
     assert.deepEqual(await privateList.json(), []);
+    const detailUrl = `${url}/${workspaceId}`;
+    const detail = await fetch(detailUrl, { headers: { Cookie: cookie(current) } });
+    assert.equal(detail.status, 200);
+    assert.equal((await detail.json()).name, "認証連携テスト");
+    const outsiderCookie = cookie({ ...current, accessToken: token(other) });
+    assert.equal((await fetch(detailUrl, { headers: { Cookie: outsiderCookie } })).status, 404);
+    assert.equal((await fetch(detailUrl, { method: "DELETE", headers: { Cookie: outsiderCookie, Origin: "http://localhost:3000" } })).status, 404);
+    const persisted = await fetch(detailUrl, { headers: { Cookie: cookie(current) } });
+    assert.equal(persisted.status, 200, "Workspace must remain after an outsider's deletion attempt");
     const rejected = await fetch(url, { method: "POST", headers: {
       Cookie: cookie(current), Origin: "https://attacker.test", "Content-Type": "application/json",
     }, body: '{"name":"forbidden"}' });
@@ -76,6 +86,33 @@ INSERT INTO refresh_token(account_id,token_hash,expires_at) VALUES ('${id}','${h
     assert.notEqual(first.refreshToken, current.refreshToken);
     assert.equal(first.refreshToken, second.refreshToken);
     current = first;
+
+    // 配下の実データを用意し、Workspace削除時のDBカスケードも確認する。
+    const children = sql(`WITH e AS (INSERT INTO event(workspace_id,name) VALUES ('${workspaceId}','test event') RETURNING id),
+c AS (INSERT INTO category(event_id,name) SELECT id,'test category' FROM e RETURNING id),
+n AS (INSERT INTO note(category_id,content) SELECT id,'test note' FROM c RETURNING id)
+SELECT e.id || ':' || c.id || ':' || n.id FROM e,c,n;`).split(":");
+    assert.equal(children.length, 3);
+    assert.ok(children.every((value) => /^\d+$/.test(value)));
+    const inviteCode = randomBytes(3).toString("hex").toUpperCase();
+    sql(`INSERT INTO workspace_invite(workspace_id,code,expires_at) VALUES ('${workspaceId}','${inviteCode}',NOW()+INTERVAL '30 minutes');`);
+    const joined = await fetch(`${url}/join`, { method: "POST", headers: {
+      Cookie: outsiderCookie, Origin: "http://localhost:3000", "Content-Type": "application/json",
+    }, body: JSON.stringify({ code: inviteCode }) });
+    assert.equal(joined.status, 200);
+    assert.equal((await joined.json()).id, workspaceId);
+    const joinedCookie = cookie(returnedSession(joined));
+    assert.equal((await fetch(detailUrl, { headers: { Cookie: joinedCookie } })).status, 200);
+    const removed = await fetch(detailUrl, { method: "DELETE", headers: { Cookie: cookie(current), Origin: "http://localhost:3000" } });
+    assert.equal(removed.status, 204);
+    assert.equal(await removed.text(), "");
+    assert.equal((await fetch(detailUrl, { headers: { Cookie: joinedCookie } })).status, 404);
+    const afterDeletion = await fetch(url, { headers: { Cookie: cookie(current) } });
+    assert.ok(!(await afterDeletion.json()).some((w: { id: string }) => w.id === workspaceId));
+    assert.equal(sql(`SELECT (SELECT count(*) FROM event WHERE id=${children[0]}) +
+(SELECT count(*) FROM category WHERE id=${children[1]}) + (SELECT count(*) FROM note WHERE id=${children[2]}) +
+(SELECT count(*) FROM workspace_invite WHERE workspace_id='${workspaceId}') +
+(SELECT count(*) FROM workspace_account WHERE workspace_id='${workspaceId}');`), "0", "Child data must be deleted with its Workspace");
     const newHash = createHash("sha256").update(current.refreshToken).digest("hex");
     sql(`UPDATE refresh_token SET expires_at=NOW()-INTERVAL '1 day' WHERE token_hash='${newHash}';`);
     const expired = await fetch(url, { headers: { Cookie: cookie({ ...current, accessToken: token(id, true) }) } });
@@ -84,7 +121,7 @@ INSERT INTO refresh_token(account_id,token_hash,expires_at) VALUES ('${id}','${h
 
     const page = await fetch("http://localhost:3000/workspaces");
     assert.match(await page.text(), /\/login/);
-    console.log("PASS: real BFF/API/DB list, CSRF mutation, user isolation, origin rejection, concurrent refresh, expired refresh, and unauthenticated page.");
+    console.log("PASS: real Workspace create/read/delete, invite join, cascade deletion, access control, CSRF, concurrent refresh, and session expiry.");
   } finally {
     sql(`BEGIN; DELETE FROM workspace WHERE id IN (SELECT workspace_id FROM workspace_account WHERE account_id='${id}');
 DELETE FROM account WHERE id IN ('${id}','${other}'); COMMIT;`);

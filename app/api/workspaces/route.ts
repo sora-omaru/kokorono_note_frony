@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
     NextResponse.json(await api.call<Workspace[]>("/api/v1/workspaces")));
 }
 
-// フェーズ1の認証・CSRF付き更新の入口。作成画面はフェーズ2で追加する。
 export async function POST(request: NextRequest) {
   return withBackend(request, async (api) => {
     let data;

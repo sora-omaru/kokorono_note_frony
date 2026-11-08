@@ -12,6 +12,8 @@ import {
 import { GET, POST } from "../app/api/workspaces/route";
 import { GET as callback } from "../app/oauth/callback/route";
 import { GET as login } from "../app/auth/login/route";
+import { GET as getWorkspace, DELETE as deleteWorkspace } from "../app/api/workspaces/[workspaceId]/route";
+import { POST as joinWorkspace } from "../app/api/workspaces/join/route";
 
 process.env.AUTH_SESSION_SECRET = "ab".repeat(32);
 process.env.API_BASE_URL = "http://backend.test";
@@ -343,4 +345,59 @@ test("workspace routes protect origin, authentication, JSON, and input length", 
       "refreshToken",
     ),
   );
+});
+
+test("workspace detail validates its ID and preserves access errors", async () => {
+  const id = "01234567-89ab-4cde-8f01-23456789abcd";
+  const context = (workspaceId: string) => ({ params: Promise.resolve({ workspaceId }) });
+  const mocked = mock.method(globalThis, "fetch", async (url: string) => {
+    assert.equal(url, `http://backend.test/api/v1/workspaces/${id}`);
+    return response({ id, name: "Shared" });
+  });
+  assert.equal((await getWorkspace(apiRequest(), context(id))).status, 401);
+  for (const bad of ["invalid", "../auth/token", "id?other=true", ""]) {
+    assert.equal((await getWorkspace(apiRequest("GET", session()), context(bad))).status, 400);
+  }
+  assert.equal(mocked.mock.callCount(), 0);
+  const result = await getWorkspace(apiRequest("GET", session()), context(id));
+  assert.equal(result.status, 200);
+  assert.deepEqual(await result.json(), { id, name: "Shared" });
+  mocked.mock.restore();
+  mock.method(globalThis, "fetch", async () => new Response(null, { status: 404 }));
+  assert.equal((await getWorkspace(apiRequest("GET", session()), context(id))).status, 404);
+});
+
+test("workspace deletion uses CSRF, returns an empty 204, and rejects a foreign origin", async () => {
+  const id = "01234567-89ab-4cde-8f01-23456789abcd";
+  const context = { params: Promise.resolve({ workspaceId: id }) };
+  const mocked = mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    if (url.endsWith("/auth/csrf")) return response({ headerName: "X-CSRF-TOKEN", token: "csrf" }, "JSESSIONID=s; HttpOnly");
+    assert.equal(url, `http://backend.test/api/v1/workspaces/${id}`);
+    assert.equal(init.method, "DELETE");
+    assert.equal(new Headers(init.headers).get("X-CSRF-TOKEN"), "csrf");
+    assert.equal(new Headers(init.headers).get("cookie"), "JSESSIONID=s");
+    return new Response(null, { status: 204 });
+  });
+  assert.equal((await deleteWorkspace(apiRequest("DELETE", session(), undefined, "https://attacker.test"), context)).status, 403);
+  assert.equal(mocked.mock.callCount(), 0);
+  const result = await deleteWorkspace(apiRequest("DELETE", session()), context);
+  assert.equal(result.status, 204);
+  assert.equal(await result.text(), "");
+  assert.match(result.headers.get("cache-control")!, /no-store/);
+});
+
+test("joining validates text codes and distinguishes invalid and already joined responses", async () => {
+  const mocked = mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    if (url.endsWith("/auth/csrf")) return response({ headerName: "X-CSRF-TOKEN", token: "csrf" }, "JSESSIONID=s; HttpOnly");
+    assert.equal(url, "http://backend.test/api/v1/workspaces/join");
+    assert.equal(init.body, '{"code":"0ABC12"}');
+    return new Response(null, { status: 409 });
+  });
+  for (const code of ["abc123", "12345", "<script>", 123456]) {
+    assert.equal((await joinWorkspace(apiRequest("POST", session(), JSON.stringify({ code })))).status, 400);
+  }
+  assert.equal(mocked.mock.callCount(), 0);
+  const result = await joinWorkspace(apiRequest("POST", session(), '{"code":"0ABC12"}'));
+  assert.equal(result.status, 409);
+  assert.match((await result.json()).message, /すでに参加/);
 });

@@ -10,7 +10,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
-export type Workspace = { id: string; name: string };
+export type { Workspace } from "../workspaces";
 
 export function backendUrl(path: string): string {
   const base = process.env.API_BASE_URL;
