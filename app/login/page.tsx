@@ -12,12 +12,12 @@ async function LoginMessage({ searchParams }: { searchParams: Promise<{ error?: 
 }
 
 export default function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  return <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+  return <main className="flex flex-1 py-12 items-center justify-center bg-slate-50 px-6">
     <div className="w-full max-w-md text-center">
       <h1 className="mb-4 text-3xl font-bold text-slate-800">ログイン</h1>
       <p className="mb-8 text-slate-600">Googleアカウントでログインしてください</p>
       <Suspense fallback={null}><LoginMessage searchParams={searchParams} /></Suspense>
-      <a href="/auth/login" className="inline-block rounded-lg bg-slate-800 px-8 py-3 text-white">
+      <a href="/auth/login" className="btn btn-primary">
         Googleでログイン
       </a>
     </div>

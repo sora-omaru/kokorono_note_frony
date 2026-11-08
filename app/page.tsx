@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-6">
+    <main className="flex flex-1 py-12 flex-col items-center justify-center bg-slate-50 px-6">
       <div className="w-full max-w-md text-center">
         <h1 className="mb-4 text-4xl font-bold text-slate-800">
           心のノート
@@ -16,7 +16,7 @@ export default function Home() {
 
         <Link
           href="/login"
-          className="inline-block rounded-lg bg-slate-800 px-8 py-3 text-white hover:bg-slate-700"
+          className="btn btn-primary"
         >
           ログイン
         </Link>
