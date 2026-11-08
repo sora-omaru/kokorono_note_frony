@@ -24,7 +24,7 @@ API側のフロントURLはlocal設定で `http://localhost:3000`、成功後の
 
 - `/auth/login` がログイン用の乱数とHttpOnly Cookieを作成し、Google OAuthへ進みます。バックエンドはOAuthセッションにその乱数を保持し、コールバックでブラウザーのCookieと一致することを確認します。
 - `/oauth/callback` が一時コードを交換し、Access Token、Refresh Token、CSRF用セッションIDを暗号化したHttpOnly Cookieへ保持します。ブラウザーのJavaScriptへトークンを返しません。
-- ブラウザーは `lib/api.ts` の `browserApi` から同一OriginのRoute Handlerを呼びます。現在の公開入口は一覧・作成の `/api/workspaces`、詳細・削除の `/api/workspaces/[workspaceId]`、参加の `/api/workspaces/join` と、その配下のEvent・Category・Noteの階層CRUDです。階層APIは決められたパスとHTTPメソッドだけを受け付けます。任意のAPIパスを中継する公開入口は用意していません。
+- ブラウザーは `lib/api.ts` の `browserApi` から同一OriginのRoute Handlerを呼びます。現在の公開入口は一覧・作成の `/api/workspaces`、詳細・削除の `/api/workspaces/[workspaceId]`、招待発行の `/api/workspaces/[workspaceId]/invites`、参加の `/api/workspaces/join` と、その配下のEvent・Category・Noteの階層CRUDです。階層APIは決められたパスとHTTPメソッドだけを受け付けます。任意のAPIパスを中継する公開入口は用意していません。
 - POST・PATCH・DELETEは同一Originを検証します。バックエンドの更新APIには `/auth/csrf` のヘッダーと対応するJSESSIONIDを送ります。
 - 401時はRefresh Tokenを一度だけ更新して再試行します。401が続く場合はCookieを破棄し、ログイン画面へ誘導します。403は自動更新しません。通信障害ではログイン情報を維持して再試行できます。
 - ユーザーデータと認証応答は `no-store` とし、共有キャッシュに保存しません。Cookie更新はRoute Handlerで行い、Server Componentでは読み取りだけを行います。
@@ -53,14 +53,14 @@ Dockerへのアクセス権が必要です。このテストはローカルの `
 
 ## 現在の実装範囲
 
-フェーズ3までのログイン基盤、Workspace・Event・Category・Noteの操作と、招待コードでの参加を実装しています。
+フェーズ4の招待発行・再発行まで、ログイン基盤、Workspace・Event・Category・Noteの操作と、招待コードでの参加を実装しています。
 一覧は `/workspaces`、作成は `/workspaces/new`、参加は `/workspaces/join` から操作できます。
 削除前には配下の記録もすべて消えることを確認します。入力・通信エラーでは現在の画面と入力を維持します。
 Workspace詳細から出来事を作成し、出来事詳細で分類を作成できます。分類は最初に名前だけを表示し、開くとその欄で文章のメモを追加・編集・削除できます。分類専用のページには移動しません。出来事・分類の名前も編集できます。
 分類を閉じても入力中のメモは保持します。分類を作成した直後や再読み込み後は、閉じた状態から始まります。
 名称は100文字以内、メモ本文は255文字以内です。メモは登録順に表示し、編集しても順番を変えません。入力中の下書きは失敗や別メモの追加でも保持します。
 階層のIDはBFFで文字列として扱い、Java Longの範囲の値を丸めずにURLへ渡します。バックエンドのJSON契約は数値のままです。
-招待コードの発行・再発行は後続フェーズで追加します。
+Workspace一覧または詳細の「招待コードを発行」から専用ページを開き、6文字の招待コードを発行・再発行し、30分の期限を表示します。再発行すると旧コードは無効になり、期限や参加可否はバックエンドが判定します。
 認証を待つ画面は `instant = false` とし、セッション期限や不正なURLの判定はリクエスト時に行います。
 開発中に共通CSSの変更が表示へ反映されない場合は、開発サーバーを再起動して確認してください。
 公開環境の操作は、公開依頼を受けてから実施します。
