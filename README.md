@@ -43,12 +43,12 @@ npm run build
 
 `npm test` はNode.jsのテスト機能とtsxで認証・CSRF・更新競合・ユーザー分離に加え、階層CRUDの入力・パス・ID精度を確認します。Spring Bootの通信はこのテストではモックします。
 バックエンドの `./mvnw test` には、ローカルDBと実HTTPで一時コード交換・CSRF・Refresh Token更新を通すテストがあります。
-Googleの実認証はブラウザーで別途確認します。アカウントやOAuth設定がない場合は、実ログイン済みとは扱いません。
+別々のGoogleアカウントによる招待・共同編集はユーザーから動作確認済みです。自動テストはテスト用認証データを使用し、Googleログインやトークン期限切れの実ブラウザー操作を代替しません。
 
-フロントとバックエンドを起動した状態で `npm run test:integration` を実行すると、localhostのRoute Handler→API→ローカルDBでWorkspaceおよびEvent・Category・NoteのCRUD、招待参加、登録順、親子関係・所属確認、削除連鎖、大きいLong ID、認証更新と期限切れを確認します。
+フロントとバックエンドを起動した状態で `npm run test:integration` を実行すると、localhostのRoute Handler→API→ローカルDBでWorkspaceからNoteまでの作成・編集、招待発行・再発行・複数人参加・共同編集・親削除に加え、登録順、親子関係・所属確認、大きいLong ID、認証更新と期限切れを確認します。
 Dockerへのアクセス権が必要です。このテストはローカルの `.env` にあるJWT鍵でテスト用JWTを作り、テスト用データは終了時に削除します。鍵やトークンの値は表示しません。本番では実行しないでください。
 
-本番ビルドは現在の `next/font/google` によりGoogle Fontsへのネットワーク接続が必要です。
+本番ビルドは `next/font/google` の取得にネットワーク接続が必要です。この実行環境ではTurbopackのCSS処理中にポート作成が拒否されるため、`npm run build` は未完了です。
 バックエンドも変更した場合は、そのリポジトリで `./mvnw test` を実行してください。
 
 ## 現在の実装範囲
