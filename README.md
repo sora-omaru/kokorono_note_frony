@@ -24,8 +24,8 @@ API側のフロントURLはlocal設定で `http://localhost:3000`、成功後の
 
 - `/auth/login` がログイン用の乱数とHttpOnly Cookieを作成し、Google OAuthへ進みます。バックエンドはOAuthセッションにその乱数を保持し、コールバックでブラウザーのCookieと一致することを確認します。
 - `/oauth/callback` が一時コードを交換し、Access Token、Refresh Token、CSRF用セッションIDを暗号化したHttpOnly Cookieへ保持します。ブラウザーのJavaScriptへトークンを返しません。
-- ブラウザーは `lib/api.ts` の `browserApi` から同一OriginのRoute Handlerを呼びます。現在の公開入口は `GET /api/workspaces` と `POST /api/workspaces` です。任意のAPIパスを中継する公開入口は用意していません。
-- POSTは同一Originを検証します。バックエンドの更新APIには `/auth/csrf` のヘッダーと対応するJSESSIONIDを送ります。
+- ブラウザーは `lib/api.ts` の `browserApi` から同一OriginのRoute Handlerを呼びます。現在の公開入口は一覧・作成の `/api/workspaces`、詳細・削除の `/api/workspaces/[workspaceId]`、参加の `/api/workspaces/join` です。任意のAPIパスを中継する公開入口は用意していません。
+- POST・DELETEは同一Originを検証します。バックエンドの更新APIには `/auth/csrf` のヘッダーと対応するJSESSIONIDを送ります。
 - 401時はRefresh Tokenを一度だけ更新して再試行します。401が続く場合はCookieを破棄し、ログイン画面へ誘導します。403は自動更新しません。通信障害ではログイン情報を維持して再試行できます。
 - ユーザーデータと認証応答は `no-store` とし、共有キャッシュに保存しません。Cookie更新はRoute Handlerで行い、Server Componentでは読み取りだけを行います。
 
@@ -45,7 +45,7 @@ npm run build
 バックエンドの `./mvnw test` には、ローカルDBと実HTTPで一時コード交換・CSRF・Refresh Token更新を通すテストがあります。
 Googleの実認証はブラウザーで別途確認します。アカウントやOAuth設定がない場合は、実ログイン済みとは扱いません。
 
-フロントとバックエンドを起動した状態で `npm run test:integration` を実行すると、localhostのRoute Handler→API→ローカルDBでWorkspace取得・CSRF付き作成、ユーザー分離、同時の認証更新と期限切れを確認します。
+フロントとバックエンドを起動した状態で `npm run test:integration` を実行すると、localhostのRoute Handler→API→ローカルDBでWorkspaceの作成・詳細・招待参加・削除と配下データの削除、ユーザー分離、同時の認証更新と期限切れを確認します。
 Dockerへのアクセス権が必要です。このテストはローカルの `.env` にあるJWT鍵でテスト用JWTを作り、テスト用データは終了時に削除します。鍵やトークンの値は表示しません。本番では実行しないでください。
 
 本番ビルドは現在の `next/font/google` によりGoogle Fontsへのネットワーク接続が必要です。
@@ -53,6 +53,10 @@ Dockerへのアクセス権が必要です。このテストはローカルの `
 
 ## 現在の実装範囲
 
-フェーズ1ではログイン基盤、保護されたWorkspace一覧とAPI通信を実装しています。
-Workspace作成のAPI入口はありますが、作成画面・詳細画面やEvent以下の画面は後続フェーズで追加します。
+フェーズ2までのログイン基盤、保護されたWorkspace一覧・詳細・作成・削除と、招待コードでの参加を実装しています。
+一覧は `/workspaces`、作成は `/workspaces/new`、参加は `/workspaces/join` から操作できます。
+削除前には配下の記録もすべて消えることを確認します。入力・通信エラーでは現在の画面と入力を維持します。
+Event以下の画面や招待コードの発行は後続フェーズで追加します。
+認証を待つ画面は `instant = false` とし、セッション期限や不正なURLの判定はリクエスト時に行います。
+開発中に共通CSSの変更が表示へ反映されない場合は、開発サーバーを再起動して確認してください。
 公開環境の操作は、公開依頼を受けてから実施します。
