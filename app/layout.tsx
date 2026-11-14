@@ -33,6 +33,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <div id="main-content" tabIndex={-1} className="flex flex-1 flex-col">{children}</div>
+        <footer className="border-t border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 sm:px-6">
+          <nav aria-label="サービス情報" className="mx-auto flex w-full max-w-5xl flex-wrap gap-x-6 gap-y-2">
+            <Link href="/privacy" className="rounded hover:text-slate-900 hover:underline">プライバシーポリシー</Link>
+            <Link href="/terms" className="rounded hover:text-slate-900 hover:underline">利用規約</Link>
+          </nav>
+        </footer>
       </body>
     </html>
   );
