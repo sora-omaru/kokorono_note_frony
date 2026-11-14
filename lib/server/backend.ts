@@ -78,7 +78,10 @@ async function json<T>(response: Response): Promise<T> {
     const source = (await response.text()).replace(
       /"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\]:,]|true|false|null/g,
       (token: string) => {
-        const isId = previous === ":" && beforePrevious?.startsWith('"') && JSON.parse(beforePrevious) === "id";
+        const isId =
+          previous === ":" &&
+          beforePrevious?.startsWith('"') &&
+          JSON.parse(beforePrevious) === "id";
         beforePrevious = previous;
         previous = token;
         return isId && /^-?\d+$/.test(token) ? JSON.stringify(token) : token;
