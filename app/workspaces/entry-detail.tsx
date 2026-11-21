@@ -34,7 +34,7 @@ export function EventDetail({ workspaceId, eventId }: { workspaceId: string; eve
       <div className="mt-5 space-y-4">
         <RenameEntry apiPath={apiPath} label="出来事" name={event.data.name}
           onSaved={(name) => event.setData((current) => current && { ...current, name })} />
-        <DeleteEntry apiPath={apiPath} label="出来事" name={event.data.name} parentHref={parentHref} childrenLabel="分類・メモ" />
+        <DeleteEntry apiPath={apiPath} label="出来事" name={event.data.name} parentHref={parentHref} childrenLabel="メモ・メモ" />
       </div>
     </details>
     <CategoryList apiPath={`${apiPath}/categories`} eventHref={href} />

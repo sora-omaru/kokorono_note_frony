@@ -212,7 +212,7 @@ async function verifyEntries(
   const otherCategory = await named(
     `${secondEventUrl}/categories`,
     "POST",
-    "別の出来事の分類",
+    "別の出来事のメモ",
   );
   const firstCategoryUrl = `${categories}/${firstCategory.id}`;
   const secondCategoryUrl = `${categories}/${secondCategory.id}`;
@@ -321,7 +321,7 @@ async function verifyEntries(
     (await list<Note>(notes)).map((item) => item.id),
     [firstNote.id],
   );
-  const categoryChild = await note(notes, "POST", "分類削除で消えるメモ");
+  const categoryChild = await note(notes, "POST", "メモ削除で消えるメモ");
   await remove(firstCategoryUrl);
   await absent(firstCategoryUrl);
   await absent(firstNoteUrl);

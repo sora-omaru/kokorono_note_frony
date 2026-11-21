@@ -20,10 +20,10 @@ function CategoryRow({ category, apiPath, eventHref, onRenamed, onDeleted }: {
     {visited && <div className="mt-6 space-y-6">
       <NoteList apiPath={`${apiPath}/notes`} />
       <details className="panel">
-        <summary className="cursor-pointer font-semibold text-slate-900">分類の管理</summary>
+        <summary className="cursor-pointer font-semibold text-slate-900">メモの管理</summary>
         <div className="mt-5 space-y-4">
-          <RenameEntry apiPath={apiPath} label="分類" name={category.name} onSaved={onRenamed} />
-          <DeleteEntry apiPath={apiPath} label="分類" name={category.name} parentHref={eventHref}
+          <RenameEntry apiPath={apiPath} label="メモ" name={category.name} onSaved={onRenamed} />
+          <DeleteEntry apiPath={apiPath} label="メモ" name={category.name} parentHref={eventHref}
             childrenLabel="メモ" onDeleted={onDeleted} />
         </div>
       </details>
@@ -33,19 +33,19 @@ function CategoryRow({ category, apiPath, eventHref, onRenamed, onDeleted }: {
 
 export default function CategoryList({ apiPath, eventHref }: { apiPath: WorkspaceApiPath; eventHref: string }) {
   const { data: categories, error, refresh, setData } = useApiResource<CategoryItem[]>(apiPath);
-  return <section className="space-y-4" aria-label="分類の一覧と追加">
-    <h2 className="text-xl font-semibold text-slate-900">分類の一覧</h2>
+  return <section className="space-y-4" aria-label="メモの一覧と追加">
+    <h2 className="text-xl font-semibold text-slate-900">メモの一覧</h2>
     {error && <ErrorState message={error.message} onRetry={refresh} />}
     {!categories ? !error && <LoadingState /> : categories.length === 0 ?
-      <p className="panel leading-7 text-slate-600">まだ分類がありません。下のフォームから追加しましょう。</p> :
+      <p className="panel leading-7 text-slate-600">まだメモがありません。下のフォームから追加しましょう。</p> :
       <ul className="space-y-3">{categories.map((category) => <li key={category.id}>
         <CategoryRow category={category} apiPath={`${apiPath}/${category.id}`} eventHref={eventHref}
           onRenamed={(name) => setData((current) => current?.map((item) => item.id === category.id ? { ...item, name } : item) ?? null)}
           onDeleted={() => setData((current) => current?.filter((item) => item.id !== category.id) ?? null)} />
       </li>)}</ul>}
     {error?.status !== 404 && <div className="panel">
-      <h3 className="mb-5 font-semibold text-slate-900">分類を追加</h3>
-      <EntryForm label="分類の名前" submitLabel="追加する" resetAfterSave onSubmit={async (name) => {
+      <h3 className="mb-5 font-semibold text-slate-900">メモを追加</h3>
+      <EntryForm label="メモの名前" submitLabel="追加する" resetAfterSave onSubmit={async (name) => {
         const created = await browserApi<CategoryItem>(apiPath, {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
         });

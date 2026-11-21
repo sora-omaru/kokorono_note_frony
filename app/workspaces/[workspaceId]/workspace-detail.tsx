@@ -93,7 +93,7 @@ export default function WorkspaceDetail({
                 Workspaceの削除
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                削除すると、配下の出来事（Event）、分類（Category）、メモ（Note）、招待コードもすべて削除されます。参加者全員がアクセスできなくなります。
+                削除すると、配下の出来事（Event）、メモ（Category）、メモ（Note）、招待コードもすべて削除されます。参加者全員がアクセスできなくなります。
               </p>
               {deleteError && (
                 <p role="alert" className="mt-4 leading-7 text-red-800">

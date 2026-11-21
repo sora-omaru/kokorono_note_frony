@@ -15,7 +15,7 @@ export default function PrivacyPage() {
       <section className={sectionClass}>
         <h2 className={headingClass}>取得する情報</h2>
         <p>Googleアカウントでのログイン時に、Googleが提供するユーザー識別子（sub）と表示名を取得します。サービス内ではアカウントを識別するためのIDも発行します。メールアドレスはアカウント情報として保存していません。</p>
-        <p>利用者が入力したWorkspace、出来事、分類の名称とメモの本文、Workspaceへの参加情報、招待に関する情報を取り扱います。ログイン状態の維持に必要な認証情報とCookieも使用します。</p>
+        <p>利用者が入力したWorkspace、出来事、メモの名称とメモの本文、Workspaceへの参加情報、招待に関する情報を取り扱います。ログイン状態の維持に必要な認証情報とCookieも使用します。</p>
       </section>
 
       <section className={sectionClass}>
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       <section className={sectionClass}>
         <h2 className={headingClass}>保存方法</h2>
         <p>アカウント情報と利用者が作成した記録は、バックエンドを通じてデータベースに保存します。認証に必要な情報はHttpOnly Cookieで扱い、フロントエンドの認証Cookieには暗号化して保存します。バックエンドではRefresh Tokenそのものではなく、そのハッシュ値を保存します。GoogleのRefresh Tokenは保存しません。</p>
-        <p>Workspaceを削除すると、その中の出来事、分類、メモ、招待と参加情報も削除されます。現時点でアカウント自体を削除する画面はありません。</p>
+        <p>Workspaceを削除すると、その中の出来事、メモ、メモ、招待と参加情報も削除されます。現時点でアカウント自体を削除する画面はありません。</p>
       </section>
 
       <section className={sectionClass}>
