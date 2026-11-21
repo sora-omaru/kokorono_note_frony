@@ -16,7 +16,7 @@ function NoteRow({ note, index, apiPath, onSaved, onDeleted }: {
   const [error, setError] = useState("");
   const busy = useRef(false);
   async function remove() {
-    if (busy.current || !window.confirm("このメモを削除しますか？\nこの操作は取り消せません。")) return;
+    if (busy.current || !window.confirm(`メモ ${index + 1}を削除しますか？\nこの操作は取り消せません。`)) return;
     busy.current = true;
     setDeleting(true);
     setError("");
@@ -34,10 +34,16 @@ function NoteRow({ note, index, apiPath, onSaved, onDeleted }: {
         setEditing(false);
       }} /> : <>
       <p className="whitespace-pre-wrap break-words leading-7 text-slate-800">{note.content}</p>
-      {error && <p role="alert" className="mt-4 text-red-800">{error}</p>}
-      <div className="mt-5 flex gap-3">
+      <div className="mt-5 flex flex-wrap items-start gap-3">
         <button type="button" className="btn btn-secondary" disabled={deleting} onClick={() => { setEditing(true); setError(""); }}>編集</button>
-        <button type="button" className="btn btn-secondary text-red-800" disabled={deleting} onClick={remove}>{deleting ? "削除中…" : "削除"}</button>
+        <details className="max-w-full">
+          <summary className="btn btn-secondary cursor-pointer">削除操作 <span className="ml-2" aria-hidden="true">▾</span></summary>
+          <div className="mt-3 rounded-lg border border-red-200 p-4">
+            <p className="text-sm leading-6 text-slate-600">メモ {index + 1}を削除します。取り消すことはできません。</p>
+            {error && <p role="alert" className="mt-3 text-red-800">{error}</p>}
+            <button type="button" className="btn btn-danger mt-3" disabled={deleting} onClick={remove}>{deleting ? "削除中…" : "このメモを削除"}</button>
+          </div>
+        </details>
       </div>
     </>}
   </article>;

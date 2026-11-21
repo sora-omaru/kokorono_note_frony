@@ -68,16 +68,15 @@ export function EntryForm({ label, initialValue = "", multiline = false, submitL
 export function RenameEntry({ apiPath, label, name, onSaved }: {
   apiPath: WorkspaceApiPath; label: string; name: string; onSaved: (name: string) => void;
 }) {
-  return <details className="panel">
-    <summary className="cursor-pointer font-semibold text-slate-900">名前を変更</summary>
-    <div className="mt-5"><EntryForm label={`${label}の名前`} initialValue={name} submitLabel="名前を保存"
+  return <section className="panel" aria-label={`${label}の名前を変更`}>
+    <EntryForm label={`${label}の名前`} initialValue={name} submitLabel="名前を保存"
       onSubmit={async (value) => {
         const result = await browserApi<{ name: string }>(apiPath, {
           method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: value }),
         });
         onSaved(result.name);
-      }} /></div>
-  </details>;
+      }} />
+  </section>;
 }
 
 export function DeleteEntry({ apiPath, label, name, parentHref, childrenLabel, onDeleted }: {

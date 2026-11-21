@@ -19,9 +19,14 @@ function CategoryRow({ category, apiPath, eventHref, onRenamed, onDeleted }: {
     <summary className="cursor-pointer break-words font-semibold leading-7 text-slate-900">{category.name}</summary>
     {visited && <div className="mt-6 space-y-6">
       <NoteList apiPath={`${apiPath}/notes`} />
-      <RenameEntry apiPath={apiPath} label="分類" name={category.name} onSaved={onRenamed} />
-      <DeleteEntry apiPath={apiPath} label="分類" name={category.name} parentHref={eventHref}
-        childrenLabel="メモ" onDeleted={onDeleted} />
+      <details className="panel">
+        <summary className="cursor-pointer font-semibold text-slate-900">分類の管理</summary>
+        <div className="mt-5 space-y-4">
+          <RenameEntry apiPath={apiPath} label="分類" name={category.name} onSaved={onRenamed} />
+          <DeleteEntry apiPath={apiPath} label="分類" name={category.name} parentHref={eventHref}
+            childrenLabel="メモ" onDeleted={onDeleted} />
+        </div>
+      </details>
     </div>}
   </details>;
 }

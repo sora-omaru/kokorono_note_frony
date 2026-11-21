@@ -29,10 +29,15 @@ export function EventDetail({ workspaceId, eventId }: { workspaceId: string; eve
   return <Screen title={event.data.name} breadcrumbs={[
     { label: "Workspace一覧", href: "/workspaces" }, { label: workspace.data.name, href: parentHref }, { label: event.data.name },
   ]}>
-    <RenameEntry apiPath={apiPath} label="出来事" name={event.data.name}
-      onSaved={(name) => event.setData((current) => current && { ...current, name })} />
+    <details className="panel">
+      <summary className="cursor-pointer font-semibold text-slate-900">出来事の管理</summary>
+      <div className="mt-5 space-y-4">
+        <RenameEntry apiPath={apiPath} label="出来事" name={event.data.name}
+          onSaved={(name) => event.setData((current) => current && { ...current, name })} />
+        <DeleteEntry apiPath={apiPath} label="出来事" name={event.data.name} parentHref={parentHref} childrenLabel="分類・メモ" />
+      </div>
+    </details>
     <CategoryList apiPath={`${apiPath}/categories`} eventHref={href} />
-    <DeleteEntry apiPath={apiPath} label="出来事" name={event.data.name} parentHref={parentHref} childrenLabel="分類・メモ" />
   </Screen>;
 }
 

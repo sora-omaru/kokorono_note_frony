@@ -81,6 +81,35 @@ export default function WorkspaceDetail({
         <LoadingState />
       ) : (
         <>
+          <details className="panel">
+            <summary className="cursor-pointer font-semibold text-slate-900">
+              Workspaceの管理
+            </summary>
+            <section
+              className="mt-5 border-t border-red-200 pt-5"
+              aria-labelledby="workspace-delete"
+            >
+              <h2 id="workspace-delete" className="font-semibold text-slate-900">
+                Workspaceの削除
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                削除すると、配下の出来事（Event）、分類（Category）、メモ（Note）、招待コードもすべて削除されます。参加者全員がアクセスできなくなります。
+              </p>
+              {deleteError && (
+                <p role="alert" className="mt-4 leading-7 text-red-800">
+                  {deleteError}
+                </p>
+              )}
+              <button
+                type="button"
+                className="btn btn-danger mt-5"
+                disabled={deleting}
+                onClick={remove}
+              >
+                {deleting ? "削除中…" : "このWorkspaceを削除"}
+              </button>
+            </section>
+          </details>
           <Link href={`/workspaces/${workspaceId}/invites`} className="btn btn-primary">
             招待コードを発行・再発行
           </Link>
@@ -100,30 +129,6 @@ export default function WorkspaceDetail({
             apiPath={`/api/workspaces/${workspaceId}/events`}
             hrefBase={`/workspaces/${workspaceId}/events`}
           />
-          <section
-            className="panel border-red-200"
-            aria-labelledby="workspace-delete"
-          >
-            <h2 id="workspace-delete" className="font-semibold text-slate-900">
-              Workspaceの削除
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              削除すると、配下の出来事（Event）、分類（Category）、メモ（Note）、招待コードもすべて削除されます。参加者全員がアクセスできなくなります。
-            </p>
-            {deleteError && (
-              <p role="alert" className="mt-4 leading-7 text-red-800">
-                {deleteError}
-              </p>
-            )}
-            <button
-              type="button"
-              className="btn btn-danger mt-5"
-              disabled={deleting}
-              onClick={remove}
-            >
-              {deleting ? "削除中…" : "このWorkspaceを削除"}
-            </button>
-          </section>
         </>
       )}
     </Screen>
